@@ -170,34 +170,43 @@ const Payment = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Building Cost Estimate</CardTitle>
-            <CardDescription>Modern toilet construction using 40,000 RWF</CardDescription>
+            <CardTitle>Payment Messages</CardTitle>
+            <CardDescription>Recent payment transactions and notifications</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b">
-                <span>Cement (2 bags @ 10,000 RWF)</span>
-                <span className="font-semibold">20,000 RWF</span>
+              <div className="flex items-center gap-3 py-3 border-b">
+                <div className="bg-success/10 p-2 rounded-lg">
+                  <CreditCard className="w-4 h-4 text-success" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">RFID Card Payment Successful</p>
+                  <p className="text-xs text-muted-foreground">Card payment method is active and ready</p>
+                </div>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span>Sand & Aggregate</span>
-                <span className="font-semibold">8,000 RWF</span>
+              <div className="flex items-center gap-3 py-3 border-b">
+                <div className="bg-success/10 p-2 rounded-lg">
+                  <Smartphone className="w-4 h-4 text-success" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">MoMo Payment Configured</p>
+                  <p className="text-xs text-muted-foreground">Mobile money payments are enabled</p>
+                </div>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span>Bricks/Blocks</span>
-                <span className="font-semibold">7,000 RWF</span>
+              <div className="flex items-center gap-3 py-3 border-b">
+                <div className="bg-success/10 p-2 rounded-lg">
+                  <HandCoins className="w-4 h-4 text-success" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Manual Access Available</p>
+                  <p className="text-xs text-muted-foreground">App users can access via manual open</p>
+                </div>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span>Labor (Basic)</span>
-                <span className="font-semibold">5,000 RWF</span>
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">
+                  All payment methods are operational. Transaction logs will appear here.
+                </p>
               </div>
-              <div className="flex justify-between py-2 font-bold text-lg">
-                <span>Total Estimated Cost</span>
-                <span className="text-primary">40,000 RWF</span>
-              </div>
-              <p className="text-sm text-muted-foreground pt-2">
-                Note: Additional costs for plumbing, fixtures, and electronics not included. This is a basic structure estimate.
-              </p>
             </div>
           </CardContent>
         </Card>

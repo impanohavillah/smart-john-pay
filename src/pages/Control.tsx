@@ -6,13 +6,15 @@ import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DoorOpen, Droplet, Wind } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { DoorOpen, Droplet, Wind, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Control = () => {
   const [toilets, setToilets] = useState<Toilet[]>([]);
   const [selectedToiletId, setSelectedToiletId] = useState<string>('');
   const [loading, setLoading] = useState<string>('');
+  const [emergencyActive, setEmergencyActive] = useState<boolean>(false);
 
   useEffect(() => {
     const toiletsRef = ref(database, 'toilets');
@@ -30,7 +32,24 @@ const Control = () => {
       }
     });
 
-    return () => unsubscribe();
+    // Monitor emergency button (HIGH when Arduino button is LOW/pressed)
+    const emergencyRef = ref(database, 'emergency_button');
+    const unsubscribeEmergency = onValue(emergencyRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const isEmergency = snapshot.val() === true || snapshot.val() === 'HIGH';
+        setEmergencyActive(isEmergency);
+        if (isEmergency) {
+          toast.error('Emergency button activated!', {
+            duration: 5000,
+          });
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeEmergency();
+    };
   }, []);
 
   const selectedToilet = toilets.find((t) => t.id === selectedToiletId);
@@ -93,6 +112,16 @@ const Control = () => {
           <h1 className="text-3xl font-bold">Manual Control</h1>
           <p className="text-muted-foreground mt-1">Control toilet hardware remotely</p>
         </div>
+
+        {emergencyActive && (
+          <Alert variant="destructive" className="animate-pulse">
+            <AlertTriangle className="h-5 w-5" />
+            <AlertTitle>Emergency Alert</AlertTitle>
+            <AlertDescription>
+              Emergency button has been activated! Immediate attention required.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {toilets.length === 0 ? (
           <Card className="p-12 text-center">

@@ -207,48 +207,6 @@ const Settings = () => {
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Hardware Specifications</CardTitle>
-            <CardDescription>Connected devices and components</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Microcontroller</span>
-                <Badge variant="outline">Arduino Uno</Badge>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Communication</span>
-                <Badge variant="outline">GSM Module + SIM</Badge>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Payment</span>
-                <Badge variant="outline">RFID Reader</Badge>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Sensors</span>
-                <Badge variant="outline">Motion Sensor (PIR)</Badge>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Servo 1</span>
-                <Badge variant="outline">Door Control</Badge>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Servo 2</span>
-                <Badge variant="outline">Flush Mechanism</Badge>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Servo 3</span>
-                <Badge variant="outline">Perfume Dispenser</Badge>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Indicator</span>
-                <Badge variant="outline">Occupancy Lamp</Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </Layout>
   );

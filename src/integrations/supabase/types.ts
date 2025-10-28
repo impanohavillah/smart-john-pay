@@ -14,7 +14,134 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admin_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          setting_key: string
+          setting_value: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      command_logs: {
+        Row: {
+          command_type: string
+          control_mode: Database["public"]["Enums"]["control_mode"]
+          created_at: string | null
+          destination: string
+          error_message: string | null
+          id: string
+          status: string
+          toilet_id: string | null
+        }
+        Insert: {
+          command_type: string
+          control_mode: Database["public"]["Enums"]["control_mode"]
+          created_at?: string | null
+          destination: string
+          error_message?: string | null
+          id?: string
+          status: string
+          toilet_id?: string | null
+        }
+        Update: {
+          command_type?: string
+          control_mode?: Database["public"]["Enums"]["control_mode"]
+          created_at?: string | null
+          destination?: string
+          error_message?: string | null
+          id?: string
+          status?: string
+          toilet_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "command_logs_toilet_id_fkey"
+            columns: ["toilet_id"]
+            isOneToOne: false
+            referencedRelation: "toilets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      toilets: {
+        Row: {
+          auto_door: boolean | null
+          auto_flush: boolean | null
+          control_mode: Database["public"]["Enums"]["control_mode"]
+          created_at: string | null
+          door_open: boolean | null
+          gsm_number: string | null
+          id: string
+          is_occupied: boolean | null
+          last_cleaned: string | null
+          last_flushed: string | null
+          last_perfumed: string | null
+          location: string
+          name: string
+          perfume_enabled: boolean | null
+          perfume_interval: number | null
+          status: string
+          updated_at: string | null
+          wifi_ip: string | null
+        }
+        Insert: {
+          auto_door?: boolean | null
+          auto_flush?: boolean | null
+          control_mode?: Database["public"]["Enums"]["control_mode"]
+          created_at?: string | null
+          door_open?: boolean | null
+          gsm_number?: string | null
+          id?: string
+          is_occupied?: boolean | null
+          last_cleaned?: string | null
+          last_flushed?: string | null
+          last_perfumed?: string | null
+          location: string
+          name: string
+          perfume_enabled?: boolean | null
+          perfume_interval?: number | null
+          status?: string
+          updated_at?: string | null
+          wifi_ip?: string | null
+        }
+        Update: {
+          auto_door?: boolean | null
+          auto_flush?: boolean | null
+          control_mode?: Database["public"]["Enums"]["control_mode"]
+          created_at?: string | null
+          door_open?: boolean | null
+          gsm_number?: string | null
+          id?: string
+          is_occupied?: boolean | null
+          last_cleaned?: string | null
+          last_flushed?: string | null
+          last_perfumed?: string | null
+          location?: string
+          name?: string
+          perfume_enabled?: boolean | null
+          perfume_interval?: number | null
+          status?: string
+          updated_at?: string | null
+          wifi_ip?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +150,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      control_mode: "gsm" | "wifi"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +277,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      control_mode: ["gsm", "wifi"],
+    },
   },
 } as const

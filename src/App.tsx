@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Control from "./pages/Control";
 import Payment from "./pages/Payment";
 import Settings from "./pages/Settings";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/control" element={<ProtectedRoute><Control /></ProtectedRoute>} />
           <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

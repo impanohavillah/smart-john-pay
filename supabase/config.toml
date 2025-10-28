@@ -1,1 +1,7 @@
 project_id = "pytqsqpjqgkfgktqihaa"
+
+[functions.send-gsm-command]
+verify_jwt = false
+
+[functions.send-wifi-command]
+verify_jwt = false

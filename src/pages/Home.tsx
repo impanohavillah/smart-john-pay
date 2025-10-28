@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ref, onValue, set, remove } from 'firebase/database';
-import { database } from '@/lib/firebase';
+import { supabase } from '@/integrations/supabase/client';
 import { Toilet } from '@/types/toilet';
 import Layout from '@/components/Layout';
 import ToiletCard from '@/components/ToiletCard';
@@ -24,11 +23,14 @@ import { Switch } from '@/components/ui/switch';
 const Home = () => {
   const [toilets, setToilets] = useState<Toilet[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingToilet, setEditingToilet] = useState<Toilet | null>(null);
+  const [editingToilet, setEditingToilet] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     location: '',
     status: 'available' as Toilet['status'],
+    gsmNumber: '',
+    wifiIp: '',
+    controlMode: 'gsm' as 'gsm' | 'wifi',
     autoDoor: true,
     autoFlush: true,
     perfumeEnabled: true,
@@ -36,45 +38,79 @@ const Home = () => {
   });
 
   useEffect(() => {
-    const toiletsRef = ref(database, 'toilets');
-    const unsubscribe = onValue(toiletsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const toiletList = Object.keys(data).map((key) => ({
-          id: key,
-          ...data[key],
-        }));
-        setToilets(toiletList);
-      } else {
-        setToilets([]);
-      }
-    });
+    fetchToilets();
 
-    return () => unsubscribe();
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('toilets-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'toilets'
+        },
+        () => {
+          fetchToilets();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  const fetchToilets = async () => {
+    const { data, error } = await supabase
+      .from('toilets')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching toilets:', error);
+      toast.error('Failed to fetch toilets');
+    } else {
+      setToilets((data as Toilet[]) || []);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const toiletId = editingToilet?.id || Date.now().toString();
-    const toiletData: Toilet = {
-      id: toiletId,
-      name: formData.name,
-      location: formData.location,
-      status: formData.status,
-      isOccupied: formData.status === 'occupied',
-      doorOpen: false,
-      settings: {
-        autoDoor: formData.autoDoor,
-        autoFlush: formData.autoFlush,
-        perfumeEnabled: formData.perfumeEnabled,
-        perfumeInterval: formData.perfumeInterval,
-      },
-    };
-
     try {
-      await set(ref(database, `toilets/${toiletId}`), toiletData);
-      toast.success(editingToilet ? 'Toilet updated!' : 'Toilet added!');
+      const toiletData = {
+        name: formData.name,
+        location: formData.location,
+        status: formData.status,
+        is_occupied: false,
+        door_open: false,
+        gsm_number: formData.gsmNumber || null,
+        wifi_ip: formData.wifiIp || null,
+        control_mode: formData.controlMode,
+        auto_door: formData.autoDoor,
+        auto_flush: formData.autoFlush,
+        perfume_enabled: formData.perfumeEnabled,
+        perfume_interval: formData.perfumeInterval,
+      };
+
+      if (editingToilet) {
+        const { error } = await supabase
+          .from('toilets')
+          .update(toiletData)
+          .eq('id', editingToilet);
+
+        if (error) throw error;
+        toast.success('Toilet updated successfully');
+      } else {
+        const { error } = await supabase
+          .from('toilets')
+          .insert(toiletData);
+
+        if (error) throw error;
+        toast.success('Toilet added successfully');
+      }
+      
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
@@ -84,42 +120,55 @@ const Home = () => {
   };
 
   const handleEdit = (toilet: Toilet) => {
-    setEditingToilet(toilet);
+    setEditingToilet(toilet.id);
     setFormData({
       name: toilet.name,
       location: toilet.location,
       status: toilet.status,
-      autoDoor: toilet.settings.autoDoor,
-      autoFlush: toilet.settings.autoFlush,
-      perfumeEnabled: toilet.settings.perfumeEnabled,
-      perfumeInterval: toilet.settings.perfumeInterval,
+      gsmNumber: toilet.gsm_number || '',
+      wifiIp: toilet.wifi_ip || '',
+      controlMode: toilet.control_mode,
+      autoDoor: toilet.auto_door,
+      autoFlush: toilet.auto_flush,
+      perfumeEnabled: toilet.perfume_enabled,
+      perfumeInterval: toilet.perfume_interval,
     });
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this toilet?')) {
-      try {
-        await remove(ref(database, `toilets/${id}`));
-        toast.success('Toilet deleted!');
-      } catch (error) {
-        console.error('Error deleting toilet:', error);
-        toast.error('Failed to delete toilet');
-      }
+    if (!window.confirm('Are you sure you want to delete this toilet?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('toilets')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('Toilet deleted successfully');
+    } catch (error) {
+      console.error('Error deleting toilet:', error);
+      toast.error('Failed to delete toilet');
     }
   };
 
   const resetForm = () => {
-    setEditingToilet(null);
     setFormData({
       name: '',
       location: '',
       status: 'available',
+      gsmNumber: '',
+      wifiIp: '',
+      controlMode: 'gsm',
       autoDoor: true,
       autoFlush: true,
       perfumeEnabled: true,
       perfumeInterval: 30,
     });
+    setEditingToilet(null);
   };
 
   return (
@@ -144,7 +193,7 @@ const Home = () => {
               <DialogHeader>
                 <DialogTitle>{editingToilet ? 'Edit Toilet' : 'Add New Toilet'}</DialogTitle>
                 <DialogDescription>
-                  Configure the toilet settings and location
+                  Configure the toilet settings, location, and control methods
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -181,7 +230,53 @@ const Home = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-3 pt-2">
+
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold mb-3">Control Configuration</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="controlMode">Control Mode</Label>
+                    <Select value={formData.controlMode} onValueChange={(value: any) => setFormData({ ...formData, controlMode: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gsm">GSM (SMS)</SelectItem>
+                        <SelectItem value="wifi">WiFi (HTTP)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2 mt-3">
+                    <Label htmlFor="gsmNumber">GSM Phone Number</Label>
+                    <Input
+                      id="gsmNumber"
+                      value={formData.gsmNumber}
+                      onChange={(e) => setFormData({ ...formData, gsmNumber: e.target.value })}
+                      placeholder="+1234567890"
+                      type="tel"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      SIM card number for SMS commands
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 mt-3">
+                    <Label htmlFor="wifiIp">WiFi IP Address</Label>
+                    <Input
+                      id="wifiIp"
+                      value={formData.wifiIp}
+                      onChange={(e) => setFormData({ ...formData, wifiIp: e.target.value })}
+                      placeholder="192.168.4.101"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Local IP address for WiFi module
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2 border-t">
+                  <h3 className="font-semibold">Automation Settings</h3>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="autoDoor">Auto Door</Label>
                     <Switch

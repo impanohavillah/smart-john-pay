@@ -50,24 +50,32 @@ const ToiletCard = ({ toilet, onEdit, onDelete }: ToiletCardProps) => {
         
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex items-center gap-2">
-            {toilet.doorOpen ? (
+            {toilet.door_open ? (
               <DoorOpen className="w-4 h-4 text-success" />
             ) : (
               <DoorClosed className="w-4 h-4 text-muted-foreground" />
             )}
-            <span>{toilet.doorOpen ? 'Door Open' : 'Door Closed'}</span>
+            <span>{toilet.door_open ? 'Door Open' : 'Door Closed'}</span>
           </div>
           <div>
             <span className="text-muted-foreground">Perfume: </span>
-            <span className={toilet.settings.perfumeEnabled ? 'text-success' : 'text-muted-foreground'}>
-              {toilet.settings.perfumeEnabled ? 'On' : 'Off'}
+            <span className={toilet.perfume_enabled ? 'text-success' : 'text-muted-foreground'}>
+              {toilet.perfume_enabled ? 'On' : 'Off'}
             </span>
           </div>
         </div>
 
-        {toilet.lastFlushed && (
+        {toilet.last_flushed && (
           <div className="text-xs text-muted-foreground">
-            Last flushed: {new Date(toilet.lastFlushed).toLocaleString()}
+            Last flushed: {new Date(toilet.last_flushed).toLocaleString()}
+          </div>
+        )}
+
+        {toilet.control_mode && (
+          <div className="text-xs text-muted-foreground">
+            Control: <Badge variant="outline" className="text-xs">{toilet.control_mode.toUpperCase()}</Badge>
+            {toilet.gsm_number && <span className="ml-1">({toilet.gsm_number})</span>}
+            {toilet.wifi_ip && <span className="ml-1">({toilet.wifi_ip})</span>}
           </div>
         )}
 

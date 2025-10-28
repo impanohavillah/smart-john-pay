@@ -1,68 +1,135 @@
 import { useState, useEffect } from 'react';
-import { ref, onValue, update } from 'firebase/database';
-import { database } from '@/lib/firebase';
+import { supabase } from '@/integrations/supabase/client';
 import { Toilet } from '@/types/toilet';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { DoorOpen, Droplet, Wind, AlertTriangle } from 'lucide-react';
+import { DoorOpen, Droplet, Wind, AlertTriangle, Wifi, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Control = () => {
   const [toilets, setToilets] = useState<Toilet[]>([]);
   const [selectedToiletId, setSelectedToiletId] = useState<string>('');
   const [loading, setLoading] = useState<string>('');
-  const [emergencyActive, setEmergencyActive] = useState<boolean>(false);
+  const [secretCode, setSecretCode] = useState<string>('');
 
   useEffect(() => {
-    const toiletsRef = ref(database, 'toilets');
-    const unsubscribe = onValue(toiletsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const toiletList = Object.keys(data).map((key) => ({
-          id: key,
-          ...data[key],
-        }));
-        setToilets(toiletList);
-        if (!selectedToiletId && toiletList.length > 0) {
-          setSelectedToiletId(toiletList[0].id);
-        }
-      }
-    });
+    fetchToilets();
+    fetchSecretCode();
 
-    // Monitor emergency button (HIGH when Arduino button is LOW/pressed)
-    const emergencyRef = ref(database, 'emergency_button');
-    const unsubscribeEmergency = onValue(emergencyRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const isEmergency = snapshot.val() === true || snapshot.val() === 'HIGH';
-        setEmergencyActive(isEmergency);
-        if (isEmergency) {
-          toast.error('Emergency button activated!', {
-            duration: 5000,
-          });
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('toilets-control')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'toilets'
+        },
+        () => {
+          fetchToilets();
         }
-      }
-    });
+      )
+      .subscribe();
 
     return () => {
-      unsubscribe();
-      unsubscribeEmergency();
+      supabase.removeChannel(channel);
     };
   }, []);
 
+  const fetchToilets = async () => {
+    const { data, error } = await supabase
+      .from('toilets')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching toilets:', error);
+      toast.error('Failed to fetch toilets');
+    } else {
+      setToilets((data as Toilet[]) || []);
+      if (!selectedToiletId && data && data.length > 0) {
+        setSelectedToiletId(data[0].id);
+      }
+    }
+  };
+
+  const fetchSecretCode = async () => {
+    const { data, error } = await supabase
+      .from('admin_settings')
+      .select('setting_value')
+      .eq('setting_key', 'secret_code')
+      .single();
+
+    if (error) {
+      console.error('Error fetching secret code:', error);
+    } else if (data) {
+      setSecretCode(data.setting_value);
+    }
+  };
+
   const selectedToilet = toilets.find((t) => t.id === selectedToiletId);
+
+  const sendCommand = async (command: string) => {
+    if (!selectedToilet || !secretCode) {
+      toast.error('Missing toilet or secret code configuration');
+      return;
+    }
+
+    const endpoint = selectedToilet.control_mode === 'gsm' 
+      ? 'send-gsm-command' 
+      : 'send-wifi-command';
+
+    const payload = selectedToilet.control_mode === 'gsm'
+      ? {
+          toiletId: selectedToilet.id,
+          command: command,
+          phoneNumber: selectedToilet.gsm_number,
+          secretCode: secretCode
+        }
+      : {
+          toiletId: selectedToilet.id,
+          command: command,
+          ipAddress: selectedToilet.wifi_ip,
+          secretCode: secretCode
+        };
+
+    try {
+      const { data, error } = await supabase.functions.invoke(endpoint, {
+        body: payload
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        return true;
+      } else {
+        throw new Error(data?.error || 'Command failed');
+      }
+    } catch (error) {
+      console.error('Error sending command:', error);
+      throw error;
+    }
+  };
 
   const handleDoorToggle = async () => {
     if (!selectedToilet) return;
     setLoading('door');
     
     try {
-      await update(ref(database, `toilets/${selectedToiletId}`), {
-        doorOpen: !selectedToilet.doorOpen,
-      });
-      toast.success(`Door ${!selectedToilet.doorOpen ? 'opened' : 'closed'} successfully`);
+      const command = selectedToilet.door_open ? 'CLOSE' : 'OPEN';
+      await sendCommand(command);
+
+      // Update local database
+      await supabase
+        .from('toilets')
+        .update({ door_open: !selectedToilet.door_open })
+        .eq('id', selectedToiletId);
+
+      toast.success(`Door ${command.toLowerCase()}ed successfully`);
     } catch (error) {
       console.error('Error toggling door:', error);
       toast.error('Failed to control door');
@@ -76,9 +143,14 @@ const Control = () => {
     setLoading('flush');
     
     try {
-      await update(ref(database, `toilets/${selectedToiletId}`), {
-        lastFlushed: new Date().toISOString(),
-      });
+      await sendCommand('FLUSH');
+
+      // Update local database
+      await supabase
+        .from('toilets')
+        .update({ last_flushed: new Date().toISOString() })
+        .eq('id', selectedToiletId);
+
       toast.success('Toilet flushed successfully');
     } catch (error) {
       console.error('Error flushing:', error);
@@ -93,9 +165,14 @@ const Control = () => {
     setLoading('perfume');
     
     try {
-      await update(ref(database, `toilets/${selectedToiletId}`), {
-        lastPerfumed: new Date().toISOString(),
-      });
+      await sendCommand('PERFUME');
+
+      // Update local database
+      await supabase
+        .from('toilets')
+        .update({ last_perfumed: new Date().toISOString() })
+        .eq('id', selectedToiletId);
+
       toast.success('Perfume dispensed successfully');
     } catch (error) {
       console.error('Error dispensing perfume:', error);
@@ -110,18 +187,8 @@ const Control = () => {
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
         <div>
           <h1 className="text-3xl font-bold">Manual Control</h1>
-          <p className="text-muted-foreground mt-1">Control toilet hardware remotely</p>
+          <p className="text-muted-foreground mt-1">Control toilet hardware remotely via GSM or WiFi</p>
         </div>
-
-        {emergencyActive && (
-          <Alert variant="destructive" className="animate-pulse">
-            <AlertTriangle className="h-5 w-5" />
-            <AlertTitle>Emergency Alert</AlertTitle>
-            <AlertDescription>
-              Emergency button has been activated! Immediate attention required.
-            </AlertDescription>
-          </Alert>
-        )}
 
         {toilets.length === 0 ? (
           <Card className="p-12 text-center">
@@ -142,11 +209,26 @@ const Control = () => {
                   <SelectContent>
                     {toilets.map((toilet) => (
                       <SelectItem key={toilet.id} value={toilet.id}>
-                        {toilet.name} - {toilet.location}
+                        {toilet.name} - {toilet.location} ({toilet.control_mode.toUpperCase()})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedToilet && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                    {selectedToilet.control_mode === 'gsm' ? (
+                      <>
+                        <Smartphone className="w-4 h-4" />
+                        <span>GSM: {selectedToilet.gsm_number || 'Not configured'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wifi className="w-4 h-4" />
+                        <span>WiFi: {selectedToilet.wifi_ip || 'Not configured'}</span>
+                      </>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -166,17 +248,17 @@ const Control = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-center py-4">
-                      <div className={`inline-block px-4 py-2 rounded-full ${selectedToilet.doorOpen ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
-                        {selectedToilet.doorOpen ? 'Open' : 'Closed'}
+                      <div className={`inline-block px-4 py-2 rounded-full ${selectedToilet.door_open ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
+                        {selectedToilet.door_open ? 'Open' : 'Closed'}
                       </div>
                     </div>
                     <Button 
                       onClick={handleDoorToggle} 
                       disabled={loading === 'door'}
                       className="w-full"
-                      variant={selectedToilet.doorOpen ? 'destructive' : 'default'}
+                      variant={selectedToilet.door_open ? 'destructive' : 'default'}
                     >
-                      {loading === 'door' ? 'Processing...' : selectedToilet.doorOpen ? 'Close Door' : 'Open Door'}
+                      {loading === 'door' ? 'Processing...' : selectedToilet.door_open ? 'Close Door' : 'Open Door'}
                     </Button>
                   </CardContent>
                 </Card>
@@ -194,10 +276,10 @@ const Control = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {selectedToilet.lastFlushed && (
+                    {selectedToilet.last_flushed && (
                       <div className="text-sm text-muted-foreground text-center py-4">
                         Last flushed:<br />
-                        {new Date(selectedToilet.lastFlushed).toLocaleString()}
+                        {new Date(selectedToilet.last_flushed).toLocaleString()}
                       </div>
                     )}
                     <Button 
@@ -224,13 +306,13 @@ const Control = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-center py-4">
-                      <div className={`inline-block px-4 py-2 rounded-full ${selectedToilet.settings.perfumeEnabled ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
-                        {selectedToilet.settings.perfumeEnabled ? 'Enabled' : 'Disabled'}
+                      <div className={`inline-block px-4 py-2 rounded-full ${selectedToilet.perfume_enabled ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
+                        {selectedToilet.perfume_enabled ? 'Enabled' : 'Disabled'}
                       </div>
                     </div>
                     <Button 
                       onClick={handlePerfume} 
-                      disabled={loading === 'perfume' || !selectedToilet.settings.perfumeEnabled}
+                      disabled={loading === 'perfume' || !selectedToilet.perfume_enabled}
                       className="w-full"
                     >
                       {loading === 'perfume' ? 'Dispensing...' : 'Dispense Perfume'}

@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Home, Settings, CreditCard, Wrench, LogOut, Droplet } from 'lucide-react';
+import { Home, Settings, CreditCard, Wrench, LogOut, Droplet, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface LayoutProps {
@@ -21,6 +21,7 @@ const Layout = ({ children }: LayoutProps) => {
   const navItems = [
     { path: '/', icon: Home, label: 'Home' },
     { path: '/control', icon: Wrench, label: 'Control' },
+    { path: '/admin', icon: ShieldCheck, label: 'Admin' },
     { path: '/payment', icon: CreditCard, label: 'Payment' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
@@ -35,7 +36,7 @@ const Layout = ({ children }: LayoutProps) => {
                 <Droplet className="w-6 h-6 text-primary" />
               </div>
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Smart Toilet
+                SmartMe
               </span>
             </Link>
             

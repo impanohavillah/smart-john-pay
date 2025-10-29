@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ref, onValue, update } from 'firebase/database';
-import { database } from '@/lib/firebase';
+import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,36 +16,68 @@ const Payment = () => {
     momo: { type: 'momo', enabled: true, price: 200 },
     manual: { type: 'manual', enabled: true },
   });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const paymentRef = ref(database, 'payment_settings');
-    const unsubscribe = onValue(paymentRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setPaymentMethods(snapshot.val());
-      }
-    });
-
-    return () => unsubscribe();
+    fetchPaymentSettings();
   }, []);
 
-  const handleToggle = async (type: string, enabled: boolean) => {
+  const fetchPaymentSettings = async () => {
     try {
-      await update(ref(database, `payment_settings/${type}`), { enabled });
-      toast.success(`${type.toUpperCase()} payment ${enabled ? 'enabled' : 'disabled'}`);
-    } catch (error) {
-      console.error('Error updating payment method:', error);
-      toast.error('Failed to update payment method');
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', ['payment_card', 'payment_momo', 'payment_manual']);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const settings: any = {};
+        data.forEach((item) => {
+          try {
+            const parsed = JSON.parse(item.setting_value);
+            const type = item.setting_key.replace('payment_', '');
+            settings[type] = parsed;
+          } catch {
+            // Handle invalid JSON
+          }
+        });
+        setPaymentMethods((prev) => ({ ...prev, ...settings }));
+      }
+    } catch (error: any) {
+      console.error('Error fetching payment settings');
     }
   };
 
-  const handlePriceUpdate = async (type: string, price: number) => {
+  const updatePaymentSetting = async (type: string, data: PaymentMethod) => {
+    setLoading(true);
     try {
-      await update(ref(database, `payment_settings/${type}`), { price });
-      toast.success(`${type.toUpperCase()} price updated`);
-    } catch (error) {
-      console.error('Error updating price:', error);
-      toast.error('Failed to update price');
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert({
+          setting_key: `payment_${type}`,
+          setting_value: JSON.stringify(data),
+        });
+
+      if (error) throw error;
+      toast.success(`${type.toUpperCase()} payment updated`);
+    } catch (error: any) {
+      toast.error('Failed to update payment method');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleToggle = (type: string, enabled: boolean) => {
+    const updated = { ...paymentMethods[type], enabled };
+    setPaymentMethods({ ...paymentMethods, [type]: updated });
+    updatePaymentSetting(type, updated);
+  };
+
+  const handlePriceUpdate = (type: string, price: number) => {
+    const updated = { ...paymentMethods[type], price };
+    setPaymentMethods({ ...paymentMethods, [type]: updated });
+    updatePaymentSetting(type, updated);
   };
 
   return (
@@ -77,6 +108,7 @@ const Payment = () => {
                   id="card-enabled"
                   checked={paymentMethods.card.enabled}
                   onCheckedChange={(checked) => handleToggle('card', checked)}
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -93,7 +125,7 @@ const Payment = () => {
                     });
                   }}
                   onBlur={(e) => handlePriceUpdate('card', parseInt(e.target.value) || 0)}
-                  disabled={!paymentMethods.card.enabled}
+                  disabled={!paymentMethods.card.enabled || loading}
                 />
               </div>
             </CardContent>
@@ -118,6 +150,7 @@ const Payment = () => {
                   id="momo-enabled"
                   checked={paymentMethods.momo.enabled}
                   onCheckedChange={(checked) => handleToggle('momo', checked)}
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -134,7 +167,7 @@ const Payment = () => {
                     });
                   }}
                   onBlur={(e) => handlePriceUpdate('momo', parseInt(e.target.value) || 0)}
-                  disabled={!paymentMethods.momo.enabled}
+                  disabled={!paymentMethods.momo.enabled || loading}
                 />
               </div>
             </CardContent>
@@ -159,6 +192,7 @@ const Payment = () => {
                   id="manual-enabled"
                   checked={paymentMethods.manual.enabled}
                   onCheckedChange={(checked) => handleToggle('manual', checked)}
+                  disabled={loading}
                 />
               </div>
               <p className="text-sm text-muted-foreground">

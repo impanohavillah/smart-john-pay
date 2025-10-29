@@ -1,8 +1,9 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Home, Settings, CreditCard, Wrench, LogOut, Droplet, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LayoutProps {
   children: ReactNode;
@@ -11,20 +12,60 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState(false);
   
-  const handleLogout = () => {
-    localStorage.removeItem('user');
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'admin')
+          .single();
+        
+        setIsAdmin(!!data);
+      }
+    };
+
+    checkAdminStatus();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const { data } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'admin')
+          .single();
+        
+        setIsAdmin(!!data);
+      } else {
+        setIsAdmin(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+  
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     toast.success('Logged out successfully');
     navigate('/auth');
   };
 
-  const navItems = [
-    { path: '/', icon: Home, label: 'Home' },
-    { path: '/control', icon: Wrench, label: 'Control' },
-    { path: '/admin', icon: ShieldCheck, label: 'Admin' },
-    { path: '/payment', icon: CreditCard, label: 'Payment' },
-    { path: '/settings', icon: Settings, label: 'Settings' },
+  const allNavItems = [
+    { path: '/', icon: Home, label: 'Home', adminOnly: false },
+    { path: '/control', icon: Wrench, label: 'Control', adminOnly: false },
+    { path: '/admin', icon: ShieldCheck, label: 'Admin', adminOnly: true },
+    { path: '/payment', icon: CreditCard, label: 'Payment', adminOnly: true },
+    { path: '/settings', icon: Settings, label: 'Settings', adminOnly: false },
   ];
+
+  const navItems = allNavItems.filter(item => !item.adminOnly || isAdmin);
 
   return (
     <div className="min-h-screen bg-background">

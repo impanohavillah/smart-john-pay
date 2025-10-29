@@ -40,6 +40,66 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return session ? <>{children}</> : <Navigate to="/auth" />;
 };
 
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+
+      if (session?.user) {
+        const { data } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'admin')
+          .single();
+        
+        setIsAdmin(!!data);
+      }
+      setLoading(false);
+    };
+
+    checkAdminStatus();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'admin')
+          .single()
+          .then(({ data }) => setIsAdmin(!!data));
+      } else {
+        setIsAdmin(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!session) {
+    return <Navigate to="/auth" />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" />;
+  }
+
+  return <>{children}</>;
+};
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -52,9 +112,9 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/control" element={<ProtectedRoute><Control /></ProtectedRoute>} />
-          <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
+          <Route path="/payment" element={<AdminRoute><Payment /></AdminRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

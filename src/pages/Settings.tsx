@@ -4,7 +4,11 @@ import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { MapPin } from 'lucide-react';
 
 const Settings = () => {
   const [globalSettings, setGlobalSettings] = useState({
@@ -15,9 +19,13 @@ const Settings = () => {
     maintenanceMode: false,
   });
   const [loading, setLoading] = useState(false);
+  const [esp32IpAddress, setEsp32IpAddress] = useState('');
+  const [ipInputValue, setIpInputValue] = useState('');
+  const { location, loading: locationLoading, getCurrentLocation, isNative } = useGeolocation();
 
   useEffect(() => {
     fetchSettings();
+    fetchEsp32IpAddress();
   }, []);
 
   const fetchSettings = async () => {
@@ -38,6 +46,51 @@ const Settings = () => {
       }
     } catch (error: any) {
       console.error('Error fetching settings');
+    }
+  };
+
+  const fetchEsp32IpAddress = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'esp32_ip_address')
+        .single();
+
+      if (data) {
+        setEsp32IpAddress(data.setting_value);
+        setIpInputValue(data.setting_value);
+      }
+    } catch (error: any) {
+      console.error('Error fetching ESP32 IP address');
+    }
+  };
+
+  const handleSaveIpAddress = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert({
+          setting_key: 'esp32_ip_address',
+          setting_value: ipInputValue,
+        });
+
+      if (error) throw error;
+
+      setEsp32IpAddress(ipInputValue);
+      toast.success('ESP32 IP address saved successfully');
+    } catch (error: any) {
+      toast.error('Failed to save ESP32 IP address');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGetLocation = async () => {
+    const loc = await getCurrentLocation();
+    if (loc) {
+      toast.success(`Location: ${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}`);
     }
   };
 
@@ -69,6 +122,68 @@ const Settings = () => {
           <h1 className="text-3xl font-bold">Settings</h1>
           <p className="text-muted-foreground mt-1">Configure system-wide settings</p>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>ESP32 Configuration</CardTitle>
+            <CardDescription>Configure direct IP connection to ESP32 device</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="esp32Ip">ESP32 IP Address</Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Enter the IP address of your ESP32 device for direct WiFi control
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  id="esp32Ip"
+                  type="text"
+                  placeholder="e.g., 192.168.1.100"
+                  value={ipInputValue}
+                  onChange={(e) => setIpInputValue(e.target.value)}
+                  disabled={loading}
+                />
+                <Button 
+                  onClick={handleSaveIpAddress} 
+                  disabled={loading || !ipInputValue}
+                >
+                  Save
+                </Button>
+              </div>
+              {esp32IpAddress && (
+                <p className="text-sm text-success mt-2">
+                  Current IP: {esp32IpAddress}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {isNative && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Device Location</CardTitle>
+              <CardDescription>Access device GPS location</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={handleGetLocation} 
+                disabled={locationLoading}
+                className="w-full"
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                {locationLoading ? 'Getting Location...' : 'Get Current Location'}
+              </Button>
+              {location && (
+                <div className="mt-4 p-3 bg-muted rounded-lg text-sm">
+                  <p><strong>Latitude:</strong> {location.latitude.toFixed(6)}</p>
+                  <p><strong>Longitude:</strong> {location.longitude.toFixed(6)}</p>
+                  <p><strong>Accuracy:</strong> {location.accuracy.toFixed(2)}m</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

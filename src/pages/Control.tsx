@@ -8,16 +8,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DoorOpen, Droplet, Wind, AlertTriangle, Wifi, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNativeSMS } from '@/hooks/useNativeSMS';
+import { Capacitor } from '@capacitor/core';
 
 const Control = () => {
   const [toilets, setToilets] = useState<Toilet[]>([]);
   const [selectedToiletId, setSelectedToiletId] = useState<string>('');
   const [loading, setLoading] = useState<string>('');
   const [secretCode, setSecretCode] = useState<string>('');
+  const [esp32IpAddress, setEsp32IpAddress] = useState<string>('');
+  const { sendSMS, isNative } = useNativeSMS();
+  const isNativePlatform = Capacitor.isNativePlatform();
 
   useEffect(() => {
     fetchToilets();
     fetchSecretCode();
+    fetchEsp32IpAddress();
 
     // Subscribe to realtime updates
     const channel = supabase
@@ -71,6 +77,18 @@ const Control = () => {
     }
   };
 
+  const fetchEsp32IpAddress = async () => {
+    const { data, error } = await supabase
+      .from('admin_settings')
+      .select('setting_value')
+      .eq('setting_key', 'esp32_ip_address')
+      .single();
+
+    if (data) {
+      setEsp32IpAddress(data.setting_value);
+    }
+  };
+
   const selectedToilet = toilets.find((t) => t.id === selectedToiletId);
 
   const sendCommand = async (command: string) => {
@@ -79,6 +97,61 @@ const Control = () => {
       return;
     }
 
+    // If on native platform and GSM mode, use native SMS
+    if (isNativePlatform && selectedToilet.control_mode === 'gsm' && selectedToilet.gsm_number) {
+      try {
+        const smsMessage = `${secretCode}:${command}`;
+        await sendSMS({
+          phoneNumber: selectedToilet.gsm_number,
+          message: smsMessage
+        });
+
+        // Log the command to database
+        await supabase.from('command_logs').insert({
+          toilet_id: selectedToilet.id,
+          command_type: command,
+          control_mode: 'gsm',
+          destination: selectedToilet.gsm_number,
+          status: 'sent'
+        });
+
+        return true;
+      } catch (error) {
+        console.error('Error sending native SMS:', error);
+        throw error;
+      }
+    }
+
+    // If ESP32 direct IP is configured and WiFi mode, use direct HTTP
+    if (esp32IpAddress && selectedToilet.control_mode === 'wifi') {
+      try {
+        const url = `http://${esp32IpAddress}/command?code=${secretCode}&cmd=${command}`;
+        const response = await fetch(url, { 
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+          throw new Error('ESP32 request failed');
+        }
+
+        // Log the command to database
+        await supabase.from('command_logs').insert({
+          toilet_id: selectedToilet.id,
+          command_type: command,
+          control_mode: 'wifi',
+          destination: esp32IpAddress,
+          status: 'success'
+        });
+
+        return true;
+      } catch (error) {
+        console.error('Error sending direct ESP32 command:', error);
+        throw error;
+      }
+    }
+
+    // Fallback to edge functions
     const endpoint = selectedToilet.control_mode === 'gsm' 
       ? 'send-gsm-command' 
       : 'send-wifi-command';
@@ -187,8 +260,30 @@ const Control = () => {
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
         <div>
           <h1 className="text-3xl font-bold">Manual Control</h1>
-          <p className="text-muted-foreground mt-1">Control toilet hardware remotely via GSM or WiFi</p>
+          <p className="text-muted-foreground mt-1">
+            Control toilet hardware remotely via {isNativePlatform ? 'native SMS or' : ''} GSM/WiFi
+          </p>
         </div>
+
+        {isNativePlatform && (
+          <Alert>
+            <Smartphone className="h-4 w-4" />
+            <AlertTitle>Native SMS Enabled</AlertTitle>
+            <AlertDescription>
+              Running on mobile device - GSM commands will be sent directly from your phone's SIM card.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {esp32IpAddress && (
+          <Alert>
+            <Wifi className="h-4 w-4" />
+            <AlertTitle>Direct ESP32 Connection</AlertTitle>
+            <AlertDescription>
+              WiFi commands will be sent directly to {esp32IpAddress}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {toilets.length === 0 ? (
           <Card className="p-12 text-center">

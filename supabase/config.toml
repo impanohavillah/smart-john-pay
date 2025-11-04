@@ -1,5 +1,8 @@
 project_id = "pytqsqpjqgkfgktqihaa"
 
+[functions.analytics-ai]
+verify_jwt = true
+
 [functions.send-gsm-command]
 verify_jwt = true
 

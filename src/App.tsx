@@ -12,6 +12,7 @@ import Control from "./pages/Control";
 import Payment from "./pages/Payment";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -112,6 +113,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/control" element={<ProtectedRoute><Control /></ProtectedRoute>} />
+          <Route path="/analytics" element={<AdminRoute><Analytics /></AdminRoute>} />
           <Route path="/payment" element={<AdminRoute><Payment /></AdminRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />

@@ -57,7 +57,7 @@ const Admin = () => {
       .single();
 
     if (error) {
-      console.error('Error fetching secret code:', error);
+      toast.error('Failed to fetch secret code');
     } else if (data) {
       setSecretCode(data.setting_value);
       setNewSecretCode(data.setting_value);
@@ -78,7 +78,6 @@ const Admin = () => {
       .limit(50);
 
     if (error) {
-      console.error('Error fetching command logs:', error);
       toast.error('Failed to fetch command logs');
     } else {
       setCommandLogs((data as any) || []);
@@ -103,7 +102,6 @@ const Admin = () => {
       setSecretCode(newSecretCode);
       toast.success('Secret code updated successfully');
     } catch (error) {
-      console.error('Error updating secret code:', error);
       toast.error('Failed to update secret code');
     } finally {
       setLoading(false);

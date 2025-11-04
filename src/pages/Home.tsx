@@ -68,7 +68,6 @@ const Home = () => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching toilets:', error);
       toast.error('Failed to fetch toilets');
     } else {
       setToilets((data as Toilet[]) || []);
@@ -114,7 +113,6 @@ const Home = () => {
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
-      console.error('Error saving toilet:', error);
       toast.error('Failed to save toilet');
     }
   };
@@ -150,7 +148,6 @@ const Home = () => {
       if (error) throw error;
       toast.success('Toilet deleted successfully');
     } catch (error) {
-      console.error('Error deleting toilet:', error);
       toast.error('Failed to delete toilet');
     }
   };

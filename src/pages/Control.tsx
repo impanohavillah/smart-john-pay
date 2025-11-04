@@ -53,7 +53,6 @@ const Control = () => {
       .order('name');
 
     if (error) {
-      console.error('Error fetching toilets:', error);
       toast.error('Failed to fetch toilets');
     } else {
       setToilets((data as Toilet[]) || []);
@@ -71,7 +70,7 @@ const Control = () => {
       .single();
 
     if (error) {
-      console.error('Error fetching secret code:', error);
+      toast.error('Failed to fetch secret code. Please check settings.');
     } else if (data) {
       setSecretCode(data.setting_value);
     }
@@ -97,6 +96,17 @@ const Control = () => {
       return;
     }
 
+    // Validate control mode configuration
+    if (selectedToilet.control_mode === 'gsm' && !selectedToilet.gsm_number) {
+      toast.error('GSM number not configured for this toilet');
+      return;
+    }
+
+    if (selectedToilet.control_mode === 'wifi' && !selectedToilet.wifi_ip && !esp32IpAddress) {
+      toast.error('WiFi IP address not configured');
+      return;
+    }
+
     // If on native platform and GSM mode, use native SMS
     if (isNativePlatform && selectedToilet.control_mode === 'gsm' && selectedToilet.gsm_number) {
       try {
@@ -117,7 +127,7 @@ const Control = () => {
 
         return true;
       } catch (error) {
-        console.error('Error sending native SMS:', error);
+        toast.error('Failed to send SMS command');
         throw error;
       }
     }
@@ -128,7 +138,8 @@ const Control = () => {
         const url = `http://${esp32IpAddress}/command?code=${secretCode}&cmd=${command}`;
         const response = await fetch(url, { 
           method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(5000)
         });
 
         if (!response.ok) {
@@ -146,7 +157,7 @@ const Control = () => {
 
         return true;
       } catch (error) {
-        console.error('Error sending direct ESP32 command:', error);
+        toast.error('Failed to connect to ESP32. Check IP address.');
         throw error;
       }
     }
@@ -183,7 +194,7 @@ const Control = () => {
         throw new Error(data?.error || 'Command failed');
       }
     } catch (error) {
-      console.error('Error sending command:', error);
+      toast.error('Command execution failed');
       throw error;
     }
   };
@@ -204,7 +215,6 @@ const Control = () => {
 
       toast.success(`Door ${command.toLowerCase()}ed successfully`);
     } catch (error) {
-      console.error('Error toggling door:', error);
       toast.error('Failed to control door');
     } finally {
       setLoading('');
@@ -226,7 +236,6 @@ const Control = () => {
 
       toast.success('Toilet flushed successfully');
     } catch (error) {
-      console.error('Error flushing:', error);
       toast.error('Failed to flush toilet');
     } finally {
       setLoading('');
@@ -248,7 +257,6 @@ const Control = () => {
 
       toast.success('Perfume dispensed successfully');
     } catch (error) {
-      console.error('Error dispensing perfume:', error);
       toast.error('Failed to dispense perfume');
     } finally {
       setLoading('');

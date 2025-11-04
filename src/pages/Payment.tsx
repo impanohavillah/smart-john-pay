@@ -45,7 +45,7 @@ const Payment = () => {
         setPaymentMethods((prev) => ({ ...prev, ...settings }));
       }
     } catch (error: any) {
-      console.error('Error fetching payment settings');
+      toast.error('Failed to fetch payment settings');
     }
   };
 

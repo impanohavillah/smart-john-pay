@@ -45,7 +45,7 @@ const Settings = () => {
         setGlobalSettings((prev) => ({ ...prev, ...settings }));
       }
     } catch (error: any) {
-      console.error('Error fetching settings');
+      toast.error('Failed to fetch settings');
     }
   };
 
@@ -62,7 +62,7 @@ const Settings = () => {
         setIpInputValue(data.setting_value);
       }
     } catch (error: any) {
-      console.error('Error fetching ESP32 IP address');
+      // ESP32 IP is optional, no error needed if not set
     }
   };
 
@@ -125,14 +125,17 @@ const Settings = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>ESP32 Configuration</CardTitle>
-            <CardDescription>Configure direct IP connection to ESP32 device</CardDescription>
+            <CardTitle>ESP32 Direct Control (Optional)</CardTitle>
+            <CardDescription>
+              Configure direct IP connection to ESP32 for WiFi-mode toilets. 
+              This is optional - toilets in GSM mode use SMS instead.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="esp32Ip">ESP32 IP Address</Label>
+              <Label htmlFor="esp32Ip">ESP32 IP Address (Optional)</Label>
               <p className="text-sm text-muted-foreground mb-2">
-                Enter the IP address of your ESP32 device for direct WiFi control
+                Only needed for WiFi-mode toilets. Leave empty if using GSM control.
               </p>
               <div className="flex gap-2">
                 <Input

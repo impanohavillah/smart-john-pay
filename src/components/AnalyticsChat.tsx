@@ -114,8 +114,8 @@ export default function AnalyticsChat() {
       <CardHeader>
         <CardTitle>Ask AI About Your Business</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-4 p-4">
-        <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
+      <CardContent className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+        <div className="flex-1 overflow-y-auto pr-4 scroll-smooth" ref={scrollRef}>
           <div className="space-y-4">
             {messages.length === 0 && (
               <div className="text-center text-muted-foreground py-8">
@@ -146,7 +146,7 @@ export default function AnalyticsChat() {
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
             value={input}

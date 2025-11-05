@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { DollarSign, TrendingUp, CreditCard, Activity } from "lucide-react";
+import AnalyticsChat from "@/components/AnalyticsChat";
 
 interface AnalyticsData {
   totalTransactions: number;
@@ -203,6 +204,9 @@ export default function Analytics() {
             </CardContent>
           </Card>
         </div>
+
+        {/* AI Chat */}
+        <AnalyticsChat />
       </div>
     </Layout>
   );

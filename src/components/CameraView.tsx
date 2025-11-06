@@ -5,12 +5,42 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Video, Plus, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 interface Camera {
   id: string;
   name: string;
   url: string;
 }
+
+// Secure camera URL validation schema
+const cameraUrlSchema = z.string()
+  .trim()
+  .min(1, "URL cannot be empty")
+  .refine((url) => {
+    try {
+      const parsed = new URL(url);
+      return ['http:', 'https:', 'rtsp:'].includes(parsed.protocol);
+    } catch {
+      return false;
+    }
+  }, "Invalid URL format. Only HTTP, HTTPS, and RTSP protocols are allowed")
+  .refine((url) => {
+    try {
+      const parsed = new URL(url);
+      const hostname = parsed.hostname;
+      // Block private IP ranges for security (prevents SSRF attacks)
+      const privateIpPattern = /^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.0\.0\.1|localhost)/;
+      return !privateIpPattern.test(hostname);
+    } catch {
+      return false;
+    }
+  }, "Private IP addresses are not allowed for security reasons");
+
+const cameraNameSchema = z.string()
+  .trim()
+  .min(1, "Camera name cannot be empty")
+  .max(100, "Camera name must be less than 100 characters");
 
 export default function CameraView() {
   const [cameras, setCameras] = useState<Camera[]>([]);
@@ -23,10 +53,24 @@ export default function CameraView() {
       return;
     }
 
+    // Validate camera name
+    const nameValidation = cameraNameSchema.safeParse(newCameraName);
+    if (!nameValidation.success) {
+      toast.error(nameValidation.error.errors[0].message);
+      return;
+    }
+
+    // Validate camera URL
+    const urlValidation = cameraUrlSchema.safeParse(newCameraUrl);
+    if (!urlValidation.success) {
+      toast.error(urlValidation.error.errors[0].message);
+      return;
+    }
+
     const newCamera: Camera = {
       id: Date.now().toString(),
-      name: newCameraName,
-      url: newCameraUrl,
+      name: nameValidation.data,
+      url: urlValidation.data,
     };
 
     setCameras([...cameras, newCamera]);

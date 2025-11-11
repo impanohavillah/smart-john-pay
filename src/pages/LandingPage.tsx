@@ -4,23 +4,17 @@ import { useNavigate } from "react-router-dom";
 import { Zap, Shield, TrendingUp, Smartphone, DollarSign, BarChart3, MapPin, Users } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import Home from "./Home";
 
-const Index = () => {
+const LandingPage = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState({ toilets: 0, transactions: 0, revenue: 0 });
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     // Check authentication status
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(!!session);
-      setLoading(false);
-    };
-
-    checkAuth();
+    });
 
     const fetchStats = async () => {
       const { data: toiletData } = await supabase.from('toilets').select('id', { count: 'exact' });
@@ -38,22 +32,13 @@ const Index = () => {
     fetchStats();
   }, []);
 
-  // Show loading state while checking authentication
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // If authenticated, show the Home dashboard instead
-  if (isAuthenticated) {
-    return <Home />;
-  }
+  const handleGetStarted = () => {
+    if (isAuthenticated) {
+      navigate('/');
+    } else {
+      navigate('/auth');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -79,11 +64,11 @@ const Index = () => {
             </p>
             
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-              <Button size="lg" onClick={() => navigate('/auth')} className="text-lg shadow-lg hover:shadow-xl transition-all">
-                Get Started Free
+              <Button size="lg" onClick={handleGetStarted} className="text-lg shadow-lg hover:shadow-xl transition-all">
+                {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
               </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate('/auth')} className="text-lg">
-                View Demo
+              <Button size="lg" variant="outline" onClick={handleGetStarted} className="text-lg">
+                {isAuthenticated ? 'View Analytics' : 'View Demo'}
               </Button>
             </div>
 
@@ -186,11 +171,11 @@ const Index = () => {
             <h2 className="mb-4 text-4xl font-bold">Ready to Transform Your Facilities?</h2>
             <p className="mb-8 text-xl text-muted-foreground">Join leading operators using SmartMe to revolutionize sanitation management</p>
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-              <Button size="lg" onClick={() => navigate('/auth')} className="text-lg">
-                Start Free Trial
+              <Button size="lg" onClick={handleGetStarted} className="text-lg">
+                {isAuthenticated ? 'Go to Dashboard' : 'Start Free Trial'}
               </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate('/auth')}>
-                Schedule Demo
+              <Button size="lg" variant="outline" onClick={handleGetStarted}>
+                {isAuthenticated ? 'View Business Intel' : 'Schedule Demo'}
               </Button>
             </div>
           </CardContent>
@@ -200,4 +185,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default LandingPage;

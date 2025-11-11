@@ -7,12 +7,15 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import Home from "./pages/Home";
+import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Control from "./pages/Control";
 import Payment from "./pages/Payment";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import Analytics from "./pages/Analytics";
+import BusinessIntel from "./pages/BusinessIntel";
+import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -110,10 +113,13 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/" element={<Index />} />
+          <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/control" element={<ProtectedRoute><Control /></ProtectedRoute>} />
           <Route path="/analytics" element={<AdminRoute><Analytics /></AdminRoute>} />
+          <Route path="/business" element={<AdminRoute><BusinessIntel /></AdminRoute>} />
           <Route path="/payment" element={<AdminRoute><Payment /></AdminRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />

@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Home, Settings, CreditCard, Wrench, LogOut, Droplet, ShieldCheck, BarChart3 } from 'lucide-react';
+import { Home, Settings, CreditCard, Wrench, LogOut, Droplet, ShieldCheck, BarChart3, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -58,9 +58,10 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   const allNavItems = [
-    { path: '/', icon: Home, label: 'Home', adminOnly: false },
+    { path: '/', icon: Home, label: 'Dashboard', adminOnly: false },
     { path: '/control', icon: Wrench, label: 'Control', adminOnly: false },
     { path: '/analytics', icon: BarChart3, label: 'Analytics', adminOnly: true },
+    { path: '/business', icon: TrendingUp, label: 'Business Intel', adminOnly: true },
     { path: '/admin', icon: ShieldCheck, label: 'Admin', adminOnly: true },
     { path: '/payment', icon: CreditCard, label: 'Payment', adminOnly: true },
     { path: '/settings', icon: Settings, label: 'Settings', adminOnly: false },
